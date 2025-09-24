@@ -1,0 +1,80 @@
+{
+  "ad_cards": [
+    "div:has-text('Sponsored')",
+    "[role='article']:has([text*='Sponsored'])",
+    "div[data-pagelet*='FeedUnit']",
+    "div[class*='story']:has([text*='Sponsored'])",
+    "[data-testid='ad-card']",
+    "[role='article']",
+    "div[style*='border']:has(img)"
+  ],
+  "media_images": [
+    "img[src*='fbcdn']",
+    "img[src*='safe_image.php']",
+    "div[style*='background-image'][style*='fbcdn']",
+    "[role='img']",
+    "img[class*='scaledImageFit']",
+    "video[src*='fbcdn']"
+  ],
+  "ad_text": [
+    "[data-testid='ad-text']",
+    "div[dir='auto']",
+    "span[dir='auto']"
+  ],
+  "cta_buttons": [
+    "[data-testid='cta-button']",
+    "a[role='button']",
+    "button",
+    "a[href*='facebook.com/tr']",
+    "[data-testid*='button']",
+    "div[role='button']"
+  ],
+  "sponsored_ad_cards": [
+    "div:has-text('Sponsored')",
+    "[role='article']:has([text*='Sponsored'])",
+    "div[data-pagelet*='FeedUnit']",
+    "div:has(span:text('Sponsored'))",
+    "[data-testid*='sponsored']",
+    "div:has(.sponsored)"
+  ],
+  "ad_text_primary": [
+    "div[class*='x1lliihq'][class*='x6ikm8r']",
+    "span[class*='x8t9es0'][class*='x1fvot60']",
+    "div[class*='xdj266r'][class*='x11i5rnm']",
+    "div[dir='auto']:not(:empty)",
+    "span[dir='auto']:not(:empty)"
+  ],
+  "ad_text_fallback": [
+    "[data-testid='ad-text']",
+    "div[dir='auto']",
+    "span[dir='auto']",
+    "div[class*='x1xdureb']",
+    "span[class*='x1lliihq']"
+  ],
+  "text_containers": [
+    "div[class*='x1xdureb']",
+    "span[class*='x1lliihq']",
+    "div:has(span[dir='auto'])",
+    "div:has(div[dir='auto'])"
+  ],
+  "cta_buttons_enhanced": [
+    "div[role='button'][class*='x1i10hfl']",
+    "a[class*='x1i10hfl'][class*='xjbqb8w']",
+    "button[class*='x1qjc9v5']",
+    "div[role='button']",
+    "a[role='button']",
+    "button"
+  ],
+  "library_id": [
+    "text=Library ID",
+    "[data-testid*='library']",
+    "span:has-text('Library ID')"
+  ],
+  "page_name": [
+    "[role='link'][href*='/']",
+    "a[href*='facebook.com']",
+    "strong",
+    "b",
+    "[data-testid*='page-name']"
+  ]
+}

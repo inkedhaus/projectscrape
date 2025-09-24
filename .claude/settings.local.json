@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(cat:*)",
+      "Bash(uv run:*)",
+      "Bash(pip install:*)",
+      "Bash(uvx:*)",
+      "Bash(python:*)",
+      "Bash(serena:*)",
+      "Read(//c/Users/Cristian/Downloads/add/**)",
+      "Bash(code_check)",
+      "Bash(powershell:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

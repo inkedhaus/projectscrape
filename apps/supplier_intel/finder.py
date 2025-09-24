@@ -209,7 +209,7 @@ class SupplierFinder:
                     # Capture pattern in closure to avoid late binding issue
                     def make_filter(p):
                         return lambda text: text and p in text.lower()
-                    
+
                     elements = soup.find_all(text=make_filter(pattern))
                     if elements:
                         supplier[f"website_{pattern}"] = elements[0].strip()[:100]

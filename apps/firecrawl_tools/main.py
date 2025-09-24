@@ -19,12 +19,13 @@ except ImportError:
 from core.config import load_config
 from core.utils import generate_url_slug, sanitize_search_query
 
-from .facebook_simple_config import FACEBOOK_ADS_SIMPLE_CONFIG
-from .firecrawl_presets import (
-    POPULAR_FACEBOOK_PAGES,
-    get_facebook_ads_url,
-    get_preset_examples,
-    process_facebook_ad_results,
+from .facebook_simple_config import (
+    FACEBOOK_ADS_ENHANCED_CONFIG,
+    FACEBOOK_ADS_EU_CONFIG,
+    FACEBOOK_ADS_SIMPLE_CONFIG,
+    AdDeduplicator,
+    DateRangeFilter,
+    build_url_with_date_filter,
 )
 
 # Constants
@@ -167,7 +168,9 @@ class FirecrawlManager:
         """Get user's menu choice with validation"""
         valid_choices = [option["num"] for option in MENU_OPTIONS]
         while True:
-            choice = input(f"\nEnter the method number (1–{len(MENU_OPTIONS)}) you want to run: ").strip()
+            choice = input(
+                f"\nEnter the method number (1–{len(MENU_OPTIONS)}) you want to run: "
+            ).strip()
             if choice in valid_choices:
                 return choice
             print(f"❌ Invalid choice. Please enter a number from 1-{len(MENU_OPTIONS)}.")
@@ -195,11 +198,11 @@ class FirecrawlManager:
         return [item.strip() for item in input_value.split(separator)]
 
     def _execute_firecrawl_operation(
-        self, 
-        operation_name: str, 
-        operation_func, 
+        self,
+        operation_name: str,
+        operation_func,
         filename_base: str,
-        progress_message: str | None = None
+        progress_message: str | None = None,
     ) -> None:
         """Execute a Firecrawl operation with error handling"""
         try:
@@ -207,7 +210,7 @@ class FirecrawlManager:
                 print(f"\n🚀 {progress_message}...")
             else:
                 print(f"\n🚀 Running {operation_name} operation...")
-                
+
             result = operation_func()
             self._save_and_display_result(operation_name, result, filename_base)
         except Exception as e:
@@ -233,7 +236,7 @@ class FirecrawlManager:
                 url, formats=formats, only_main_content=only_main, timeout=DEFAULT_TIMEOUT
             ),
             generate_url_slug(url),
-            f"Scraping {url}"
+            f"Scraping {url}",
         )
 
     def run_crawl(self) -> None:
@@ -246,7 +249,7 @@ class FirecrawlManager:
 
         limit = self._get_integer_input("Max pages to crawl", DEFAULT_CRAWL_LIMIT)
         depth = self._get_integer_input("Crawl depth", DEFAULT_CRAWL_DEPTH)
-        
+
         if limit is None or depth is None:
             return
 
@@ -254,7 +257,7 @@ class FirecrawlManager:
             "crawl",
             lambda: self.firecrawl.crawl(url=url, limit=limit, depth=depth),
             f"crawl_{generate_url_slug(url)}",
-            f"Crawling {url} (limit: {limit}, depth: {depth})"
+            f"Crawling {url} (limit: {limit}, depth: {depth})",
         )
 
     def run_map(self) -> None:
@@ -269,7 +272,7 @@ class FirecrawlManager:
             "map",
             lambda: self.firecrawl.map(url),
             f"map_{generate_url_slug(url)}",
-            f"Mapping {url}"
+            f"Mapping {url}",
         )
 
     def run_search(self) -> None:
@@ -293,7 +296,7 @@ class FirecrawlManager:
             "search",
             lambda: self.firecrawl.search(query=query, limit=limit, sources=sources),
             f"search_{sanitize_search_query(query)}",
-            f"Searching for '{query}'"
+            f"Searching for '{query}'",
         )
 
     def run_extract(self) -> None:
@@ -317,12 +320,12 @@ class FirecrawlManager:
                 return
 
             formats = [{"type": "json", "prompt": prompt}]
-            
+
             self._execute_firecrawl_operation(
                 "extract",
                 lambda: self.firecrawl.scrape(url, formats=formats, only_main_content=True),
                 f"extract_{generate_url_slug(url)}",
-                f"Extracting from {url}"
+                f"Extracting from {url}",
             )
         else:
             print("❌ Schema-based extraction not implemented in this demo")
@@ -337,101 +340,259 @@ class FirecrawlManager:
             return
 
         # Basic example with screenshot
-        actions = [
-            {"type": "wait", "milliseconds": 2000}, 
-            {"type": "screenshot", "fullPage": True}
-        ]
+        actions = [{"type": "wait", "milliseconds": 2000}, {"type": "screenshot", "fullPage": True}]
 
         self._execute_firecrawl_operation(
             "actions",
             lambda: self.firecrawl.scrape(url, formats=["markdown"], actions=actions),
             f"actions_{generate_url_slug(url)}",
-            f"Scraping {url} with actions"
+            f"Scraping {url} with actions",
         )
 
     def run_facebook_ads(self) -> None:
-        """Execute Facebook Ads Library scraping - Simplified version for testing"""
-        print("\n🎯 Running Facebook Ads Library scraping (Simple Mode)...")
-        
-        # Simplified: Only use popular brands for easier testing
-        print("\n📊 Popular brands available:")
-        examples = get_preset_examples()
-        for i, brand in enumerate(examples.keys(), 1):
-            print(f"{i:2d}. {brand.title()}")
+        """Execute Facebook Ads Library scraping with enhanced features"""
+        print("\n🎯 Running Enhanced Facebook Ads Library scraping...")
+        print("✨ Features: Image scraping, Date filtering, Deduplication")
 
-        try:
-            brand_choice = input(f"\nSelect brand (1-{len(examples)}) [1]: ").strip() or "1"
-            brand_idx = int(brand_choice) - 1
-            brands = list(examples.keys())
+        url = self._get_url_input("Enter Facebook Ads Library URL: ")
+        if not url:
+            return
 
-            if 0 <= brand_idx < len(brands):
-                brand_name = brands[brand_idx]
-                url = examples[brand_name]
-                print(f"✅ Selected: {brand_name.title()}")
-            else:
-                print("❌ Invalid selection, using Nike as default")
-                brand_name = "nike"
-                url = examples["nike"]
+        brand_name = input("Enter brand/company name for filename: ").strip() or "facebook_ads"
 
-        except (ValueError, KeyError):
-            print("❌ Invalid selection, using Nike as default")
-            brand_name = "nike"
-            url = get_facebook_ads_url(POPULAR_FACEBOOK_PAGES["nike"])
+        # Configuration selection
+        print("\nSelect scraping configuration:")
+        print("1. Enhanced (images + extended scrolling, slower but more complete)")
+        print("2. Simple (faster, basic content)")
+        print("3. EU (optimized for European users)")
+        config_choice = input("Choose configuration (1/2/3) [1]: ").strip() or "1"
+
+        # Date range selection
+        print("\nSelect date range:")
+        print("1. No date filter (all ads)")
+        print("2. Last 7 days")
+        print("3. Last 30 days")
+        print("4. Last 90 days")
+        print("5. Last 6 months")
+        print("6. Last year")
+        print("7. Custom range (days back)")
+        date_choice = input("Choose date range (1-7) [1]: ").strip() or "1"
+
+        # Deduplication option
+        enable_dedup = input("Enable deduplication? (Y/n): ").strip().lower() != "n"
+
+        # Process choices
+        config = self._get_config_by_choice(config_choice)
+        date_filter = self._get_date_filter_by_choice(date_choice)
+
+        # Apply date filter to URL if needed
+        if date_filter and date_filter.start_date and date_filter.end_date:
+            url = build_url_with_date_filter(url, date_filter)
+            print(
+                f"🗓️  Applied date filter: {date_filter.start_date.date()} to {date_filter.end_date.date()}"
+            )
 
         print(f"\n🔗 Target URL: {url}")
-        print("⚙️  Using Simple configuration for testing...")
-        print("⏳ This should take about 30-60 seconds...")
+        print(f"⚙️  Configuration: {config['name']}")
+        print(f"🔄 Deduplication: {'Enabled' if enable_dedup else 'Disabled'}")
+        print("⏳ Processing...")
 
-        # Use only the simple configuration for testing
         self._execute_firecrawl_operation(
-            "facebook_ads",
-            lambda: self._scrape_facebook_ads_simple(url, brand_name),
+            "facebook_ads_enhanced",
+            lambda: self._scrape_facebook_ads_enhanced(
+                url, brand_name, config, date_filter, enable_dedup
+            ),
             brand_name,
-            f"Scraping Facebook ads for {brand_name}"
+            f"Scraping Facebook ads for {brand_name}",
         )
+
+    def _get_config_by_choice(self, choice: str) -> dict:
+        """Get configuration based on user choice"""
+        configs = {
+            "1": {"config": FACEBOOK_ADS_ENHANCED_CONFIG, "name": "Enhanced"},
+            "2": {"config": FACEBOOK_ADS_SIMPLE_CONFIG, "name": "Simple"},
+            "3": {"config": FACEBOOK_ADS_EU_CONFIG, "name": "EU Optimized"},
+        }
+        return configs.get(choice, configs["1"])
+
+    def _get_date_filter_by_choice(self, choice: str) -> DateRangeFilter | None:
+        """Get date filter based on user choice"""
+        if choice == "1":
+            return None
+        if choice in ["2", "3", "4", "5", "6"]:
+            preset_map = {
+                "2": "last_7_days",
+                "3": "last_30_days",
+                "4": "last_90_days",
+                "5": "last_6_months",
+                "6": "last_year",
+            }
+            return DateRangeFilter.from_preset(preset_map[choice])
+        if choice == "7":
+            try:
+                days = int(input("Enter number of days back: ").strip())
+                return DateRangeFilter.custom_range(days)
+            except ValueError:
+                print("❌ Invalid number, using no date filter")
+                return None
+        return None
+
+    def _scrape_facebook_ads_enhanced(
+        self,
+        url: str,
+        brand_name: str,
+        config: dict,
+        date_filter: DateRangeFilter | None,
+        enable_dedup: bool,
+    ) -> dict:
+        """Enhanced Facebook ads scraping with all features"""
+        deduplicator = AdDeduplicator() if enable_dedup else None
+
+        try:
+            # Scrape using selected configuration
+            result = self.firecrawl.scrape(url=url, **config["config"])
+
+            # Process results
+            processed_result = {
+                "raw_result": result,
+                "url": url,
+                "brand": brand_name,
+                "config_used": config["name"],
+                "timestamp": datetime.now().isoformat(),
+                "features": {
+                    "images_included": not config["config"].get("remove_base64_images", True),
+                    "date_filtered": date_filter is not None,
+                    "deduplicated": enable_dedup,
+                },
+            }
+
+            # Add date filter info
+            if date_filter:
+                processed_result["date_filter"] = {
+                    "start_date": (
+                        date_filter.start_date.isoformat() if date_filter.start_date else None
+                    ),
+                    "end_date": date_filter.end_date.isoformat() if date_filter.end_date else None,
+                }
+
+            # Extract and analyze ads if HTML content is available
+            if "html" in result:
+                processed_result["extracted_ads"] = self._extract_ads_from_html(
+                    result["html"], deduplicator, date_filter
+                )
+
+            # Add deduplication stats
+            if deduplicator:
+                processed_result["deduplication_stats"] = deduplicator.get_stats()
+
+            # Show enhanced summary
+            content_length = len(result.get("markdown", "")) if result else 0
+            html_length = len(result.get("html", "")) if result else 0
+
+            print("✅ Successfully scraped:")
+            print(f"   📄 Markdown: {content_length:,} characters")
+            if html_length:
+                print(f"   🌐 HTML: {html_length:,} characters")
+
+            if "extracted_ads" in processed_result:
+                print(f"   🎯 Extracted ads: {len(processed_result['extracted_ads'])}")
+
+            if deduplicator:
+                stats = deduplicator.get_stats()
+                print(f"   🔄 Unique content: {stats['total_combinations']} combinations")
+
+            return processed_result
+
+        except Exception as e:
+            print(f"❌ Enhanced scraping failed: {str(e)[:100]}...")
+            # Return minimal result for debugging
+            return {
+                "raw_result": {"error": str(e)},
+                "url": url,
+                "brand": brand_name,
+                "config_used": f"{config['name']} (Failed)",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    def _extract_ads_from_html(
+        self,
+        html_content: str,
+        deduplicator: AdDeduplicator | None,
+        date_filter: DateRangeFilter | None,
+    ) -> list:
+        """Extract individual ads from HTML content"""
+        import re
+        from html import unescape
+
+        ads = []
+
+        # Simple ad extraction logic (can be enhanced)
+        # Look for common ad containers in Facebook Ads Library
+        ad_patterns = [
+            r'<div[^>]*data-testid="[^"]*ad[^"]*"[^>]*>(.*?)</div>',
+            r"<article[^>]*>(.*?)</article>",
+            r'<div[^>]*class="[^"]*ad[^"]*"[^>]*>(.*?)</div>',
+        ]
+
+        for pattern in ad_patterns:
+            matches = re.findall(pattern, html_content, re.DOTALL | re.IGNORECASE)
+
+            for match in matches:
+                # Clean up the HTML content
+                clean_content = unescape(match).strip()
+
+                if len(clean_content) > 100:  # Filter out very short matches
+                    ad_data = {
+                        "content": clean_content[:1000],  # Limit content length
+                        "extracted_at": datetime.now().isoformat(),
+                    }
+
+                    # Apply deduplication if enabled
+                    if deduplicator and deduplicator.is_duplicate(ad_data):
+                        continue
+
+                    # Apply date filtering if enabled
+                    if date_filter:
+                        ad_date = date_filter.extract_ad_date(ad_data)
+                        if ad_date and not date_filter.is_in_range(ad_date):
+                            continue
+                        if ad_date:
+                            ad_data["extracted_date"] = ad_date.isoformat()
+
+                    ads.append(ad_data)
+
+        return ads[:50]  # Limit to first 50 ads to avoid huge files
 
     def _scrape_facebook_ads_simple(self, url: str, brand_name: str) -> dict:
         """Simplified Facebook ads scraping using only simple config"""
         try:
             # Use simple configuration only
             result = self.firecrawl.scrape(url=url, **FACEBOOK_ADS_SIMPLE_CONFIG)
-            
-            # Process the results
-            processed_ads = process_facebook_ad_results(result)
 
-            # Enhanced result with processed ads
+            # Enhanced result without complex processing
             enhanced_result = {
                 "raw_result": result,
-                "processed_ads": processed_ads,
                 "url": url,
                 "brand": brand_name,
                 "config_used": "Simple",
             }
 
             # Show quick summary
-            if processed_ads:
-                print(f"✅ Successfully found {len(processed_ads)} ads!")
-                # Show first 3 ads
-                for i, ad in enumerate(processed_ads[:3], 1):
-                    headline = ad.get("headline", "No headline")[:40]
-                    advertiser = ad.get("advertiser", "Unknown")[:25]
-                    print(f"  {i}. {headline} (by {advertiser})")
-            else:
-                content_length = len(result.get('markdown', '')) if result else 0
-                print(f"⚠️  No ads found. Scraped {content_length:,} characters of content.")
-                
+            content_length = len(result.get("markdown", "")) if result else 0
+            print(f"✅ Successfully scraped {content_length:,} characters of content.")
+
             return enhanced_result
-            
+
         except Exception as e:
             print(f"❌ Simple config failed: {str(e)[:100]}...")
             # Return minimal result for debugging
             return {
                 "raw_result": {"error": str(e)},
-                "processed_ads": [],
                 "url": url,
                 "brand": brand_name,
                 "config_used": "Simple (Failed)",
-                "error": str(e)
+                "error": str(e),
             }
 
     def _save_and_display_result(self, method: str, result: Any, filename_base: str) -> None:
@@ -463,10 +624,6 @@ class FirecrawlManager:
 
             if "data" in result and isinstance(result["data"], list):
                 print(f"📊 Pages found: {len(result['data'])}")
-
-            # Handle Facebook ads specific results
-            if "processed_ads" in result and isinstance(result["processed_ads"], list):
-                print(f"🎯 Ads processed: {len(result['processed_ads'])}")
 
         elif isinstance(result, list):
             print(f"📋 Items found: {len(result)}")
