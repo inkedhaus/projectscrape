@@ -39,8 +39,8 @@ make setup
 Edit `.env` with your API keys:
 
 ```env
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_API_KEY=..
+OPENAI_MODEL=..
 FIRECRAWL_API_KEY=...  # Optional
 GOOGLE_API_KEY=...      # Optional
 ```
